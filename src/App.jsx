@@ -44,6 +44,24 @@ const DEFAULT_INFO=[
   {id:3,title:"Inscripción talleres",body:"Las inscripciones para talleres extraprogramáticos están abiertas hasta el 8 de agosto.",date:"2026-07-22",priority:"baja"},
 ];
 
+const DEFAULT_COLACIONES=[
+  {id:1,item:"Uvas",responsable:""},
+  {id:2,item:"Plátano",responsable:""},
+  {id:3,item:"Plátano",responsable:""},
+  {id:4,item:"Manzana",responsable:"Sol"},
+  {id:5,item:"Naranja",responsable:"Santi"},
+  {id:6,item:"Bastones de zanahoria",responsable:"Galeano"},
+  {id:7,item:"Brócoli / Huevos duros",responsable:"Damián"},
+  {id:8,item:"Bastones de apio",responsable:""},
+  {id:9,item:"Frutos secos",responsable:""},
+  {id:10,item:"Pan para rebanar + mantequilla, mantequilla de maní, pasta de dátil u otra opción",responsable:"Newen"},
+  {id:11,item:"Panqueque de avena",responsable:""},
+  {id:12,item:"Galletas de arroz o salvado integral + palta, hummus u otro",responsable:"Alma"},
+  {id:13,item:"Pera",responsable:""},
+];
+
+const COLACION_EMOJIS={"Uvas":"🍇","Plátano":"🍌","Manzana":"🍎","Naranja":"🍊","Bastones de zanahoria":"🥕","Brócoli / Huevos duros":"🥦","Bastones de apio":"🥬","Frutos secos":"🥜","Pan para rebanar + mantequilla, mantequilla de maní, pasta de dátil u otra opción":"🍞","Panqueque de avena":"🥞","Galletas de arroz o salvado integral + palta, hummus u otro":"🍘","Pera":"🍐"};
+
 /* ══════════════════════════════════════════════
    HELPERS
    ══════════════════════════════════════════════ */
@@ -78,6 +96,7 @@ const IconPlus=()=><svg width="16" height="16" viewBox="0 0 24 24" fill="none" s
 const IconEye=()=><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>;
 const IconMenu=()=><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 12h18M3 6h18M3 18h18"/></svg>;
 const IconX=()=><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>;
+const IconApple=()=><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 2c1 1 3 1 4 0M17.5 8C20 8 22 10.5 22 14c0 5-4 8-6 8s-2.5-1-4-1-2.5 1-4 1-6-3-6-8c0-3.5 2-6 4.5-6 1.5 0 2.5.5 3.5 1s2-.5 3.5-1z"/></svg>;
 const Leaf=({style})=><svg viewBox="0 0 40 60" fill="none" style={{width:28,height:42,opacity:.12,...style}}><path d="M20 0C20 0 0 20 0 40c0 11 9 20 20 20s20-9 20-20C40 20 20 0 20 0z" fill="#5B8A72"/><path d="M20 12v40M20 24c-6 4-10 10-12 16M20 30c6 4 10 10 12 14" stroke="#3D6B54" strokeWidth="1.2"/></svg>;
 
 /* ══════════════════════════════════════════════
@@ -90,10 +109,11 @@ export default function App(){
   const [schedule,setSchedule]=useState(DEFAULT_SCHEDULE);
   const [events,setEvents]=useState(DEFAULT_EVENTS);
   const [info,setInfo]=useState(DEFAULT_INFO);
+  const [colaciones,setColaciones]=useState(DEFAULT_COLACIONES);
   const handleLogin=()=>{if(pw==="siembra2026"){setMode("admin");setPw("");setPwError(false);}else setPwError(true);};
   if(mode==="login")return <LoginScreen pw={pw} setPw={setPw} error={pwError} onLogin={handleLogin} onBack={()=>{setMode("public");setPwError(false);setPw("");}}/>;
-  if(mode==="admin")return <AdminPanel schedule={schedule} setSchedule={setSchedule} events={events} setEvents={setEvents} info={info} setInfo={setInfo} onLogout={()=>setMode("public")}/>;
-  return <PublicView schedule={schedule} events={events} info={info} onAdmin={()=>setMode("login")}/>;
+  if(mode==="admin")return <AdminPanel schedule={schedule} setSchedule={setSchedule} events={events} setEvents={setEvents} info={info} setInfo={setInfo} colaciones={colaciones} setColaciones={setColaciones} onLogout={()=>setMode("public")}/>;
+  return <PublicView schedule={schedule} events={events} info={info} colaciones={colaciones} onAdmin={()=>setMode("login")}/>;
 }
 
 /* ══════════════════════════════════════════════
@@ -119,7 +139,7 @@ function LoginScreen({pw,setPw,error,onLogin,onBack}){
 /* ══════════════════════════════════════════════
    PUBLIC VIEW
    ══════════════════════════════════════════════ */
-function PublicView({schedule,events,info,onAdmin}){
+function PublicView({schedule,events,info,colaciones,onAdmin}){
   const [tab,setTab]=useState("horario");
   const [calYear,setCalYear]=useState(2026);
   const [expandedMonth,setExpandedMonth]=useState(null);
@@ -139,7 +159,7 @@ function PublicView({schedule,events,info,onAdmin}){
           <button onClick={onAdmin} style={{display:"flex",alignItems:"center",gap:6,padding:"7px 14px",borderRadius:10,border:"1.5px solid #D8D5CE",background:"rgba(255,255,255,0.6)",color:"#7A8194",fontSize:12,fontWeight:600,cursor:"pointer"}}><IconLock/>{!mobile&&<span>Admin</span>}</button>
         </div>
         <nav style={{display:"flex",gap:2,marginTop:14,maxWidth:1100,margin:"14px auto 0",overflowX:"auto",WebkitOverflowScrolling:"touch",msOverflowStyle:"none",scrollbarWidth:"none"}}>
-          {[["horario","Horario",<IconClock/>],["calendario","Calendario",<IconCal/>],["info","Información",<IconBell/>]].map(([k,l,ic])=>(
+          {[["horario","Horario",<IconClock/>],["colaciones","Colaciones",<IconApple/>],["calendario","Calendario",<IconCal/>],["info","Información",<IconBell/>]].map(([k,l,ic])=>(
             <button key={k} onClick={()=>setTab(k)} style={{display:"flex",alignItems:"center",gap:5,padding:mobile?"9px 14px":"10px 20px",border:"none",background:tab===k?"#fff":"transparent",fontSize:mobile?12:13,fontWeight:600,cursor:"pointer",color:tab===k?"#1B2A4A":"#7A8194",borderBottom:tab===k?"3px solid #5B8A72":"3px solid transparent",marginBottom:-3,borderRadius:"8px 8px 0 0",whiteSpace:"nowrap"}}>{ic}<span>{l}</span></button>
           ))}
         </nav>
@@ -147,6 +167,7 @@ function PublicView({schedule,events,info,onAdmin}){
 
       <main style={{maxWidth:1100,margin:"0 auto",padding:mobile?"16px 12px 60px":"24px 24px 60px"}}>
         {tab==="horario"&&<ScheduleView schedule={schedule} mobile={mobile}/>}
+        {tab==="colaciones"&&<ColacionesBoard colaciones={colaciones} mobile={mobile} readOnly/>}
         {tab==="calendario"&&<YearCalendar year={calYear} setYear={setCalYear} events={events} evByDate={evByDate} expandedMonth={expandedMonth} setExpandedMonth={setExpandedMonth} readOnly mobile={mobile}/>}
         {tab==="info"&&<InfoBoard info={info} readOnly mobile={mobile}/>}
       </main>
@@ -347,9 +368,73 @@ function InfoBoard({info,readOnly,onRemove,mobile}){
 }
 
 /* ══════════════════════════════════════════════
+   COLACIONES BOARD
+   ══════════════════════════════════════════════ */
+function ColacionesBoard({colaciones,mobile,readOnly,onRemove,onEdit}){
+  const [editId,setEditId]=useState(null);
+  const [editItem,setEditItem]=useState("");
+  const [editResp,setEditResp]=useState("");
+
+  const startEdit=(c)=>{setEditId(c.id);setEditItem(c.item);setEditResp(c.responsable);};
+  const saveEdit=()=>{if(onEdit&&editId!=null){onEdit(editId,editItem,editResp);}setEditId(null);};
+
+  return(
+    <div style={S.card}>
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:6}}>
+        <span style={{fontSize:28}}>🍎</span>
+        <div>
+          <h2 style={{margin:0,fontSize:mobile?16:18,fontWeight:700}}>Colaciones</h2>
+          <p style={{margin:0,fontSize:12,color:"#7A8194"}}>Calendario rotativo de colaciones compartidas</p>
+        </div>
+      </div>
+      <div style={{marginTop:16,display:"grid",gridTemplateColumns:mobile?"1fr":"1fr 1fr",gap:mobile?8:10}}>
+        {colaciones.map((c)=>{
+          const emoji=COLACION_EMOJIS[c.item]||"🍽️";
+          const isEditing=editId===c.id;
+          return(
+            <div key={c.id} style={{display:"flex",alignItems:"center",gap:12,padding:mobile?"12px 14px":"14px 18px",borderRadius:12,background:c.id%2===0?"#FFFDF7":"#FAFAF8",border:"1px solid #ECEAE4",transition:"all .15s"}}>
+              <div style={{width:mobile?32:38,height:mobile?32:38,borderRadius:10,background:"#F0EDE6",display:"flex",alignItems:"center",justifyContent:"center",fontSize:mobile?16:20,flexShrink:0}}>
+                {emoji}
+              </div>
+              <div style={{width:mobile?22:28,height:mobile?22:28,borderRadius:"50%",background:"#5B8A72",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:mobile?11:12,fontWeight:800,flexShrink:0}}>
+                {c.id}
+              </div>
+              {isEditing?(
+                <div style={{flex:1,display:"flex",flexDirection:"column",gap:4}}>
+                  <input value={editItem} onChange={e=>setEditItem(e.target.value)} style={{...S.fi,padding:"6px 10px",fontSize:13}} placeholder="Colación"/>
+                  <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                    <input value={editResp} onChange={e=>setEditResp(e.target.value)} style={{...S.fi,padding:"5px 10px",fontSize:12,flex:1}} placeholder="Responsable (opcional)"/>
+                    <button onClick={saveEdit} style={{...S.primaryBtn,padding:"5px 12px",fontSize:12}}>OK</button>
+                    <button onClick={()=>setEditId(null)} style={{...S.ghostBtn,padding:"5px 10px",fontSize:12}}>✕</button>
+                  </div>
+                </div>
+              ):(
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:mobile?13:14,fontWeight:600,color:"#1B2A4A",lineHeight:1.4}}>{c.item}</div>
+                  {c.responsable&&(
+                    <div style={{fontSize:12,color:"#5B8A72",fontWeight:600,marginTop:2}}>👤 {c.responsable}</div>
+                  )}
+                </div>
+              )}
+              {!readOnly&&!isEditing&&(
+                <div style={{display:"flex",gap:4,flexShrink:0}}>
+                  <button style={S.iconBtn} onClick={()=>startEdit(c)}><IconEdit/></button>
+                  <button style={{...S.iconBtn,color:"#E07A5F"}} onClick={()=>onRemove?.(c.id)}><IconTrash/></button>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <p style={{marginTop:14,fontSize:12,color:"#7A8194",fontStyle:"italic"}}><span style={{color:"#5B8A72",fontWeight:700}}>●</span> La lista rota día a día. El nombre indica quién trae la colación esa jornada.</p>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════
    ADMIN PANEL
    ══════════════════════════════════════════════ */
-function AdminPanel({schedule,setSchedule,events,setEvents,info,setInfo,onLogout}){
+function AdminPanel({schedule,setSchedule,events,setEvents,info,setInfo,colaciones,setColaciones,onLogout}){
   const [section,setSection]=useState("horario");
   const [calYear,setCalYear]=useState(2026);
   const [expandedMonth,setExpandedMonth]=useState(null);
@@ -364,10 +449,16 @@ function AdminPanel({schedule,setSchedule,events,setEvents,info,setInfo,onLogout
   const [editingCell,setEditingCell]=useState(null);
   const [editVal,setEditVal]=useState("");
 
+  const [showColForm,setShowColForm]=useState(false);
+  const [newCol,setNewCol]=useState({item:"",responsable:""});
+
   const addEvent=()=>{if(!newEv.title||!newEv.date)return;setEvents(ev=>[...ev,{...newEv,id:Date.now()}]);setNewEv({title:"",date:"",color:"#5B8A72"});setShowEvForm(false);};
   const removeEvent=(id)=>setEvents(ev=>ev.filter(e=>e.id!==id));
   const addInfo=()=>{if(!newInfo.title||!newInfo.body)return;setInfo(inf=>[{...newInfo,id:Date.now(),date:fmt(new Date())},...inf]);setNewInfo({title:"",body:"",priority:"media"});setShowInfoForm(false);};
   const removeInfo=(id)=>setInfo(inf=>inf.filter(i=>i.id!==id));
+  const addColacion=()=>{if(!newCol.item)return;const maxId=colaciones.reduce((m,c)=>Math.max(m,c.id),0);setColaciones(col=>[...col,{id:maxId+1,item:newCol.item,responsable:newCol.responsable}]);setNewCol({item:"",responsable:""});setShowColForm(false);};
+  const removeColacion=(id)=>setColaciones(col=>{const filtered=col.filter(c=>c.id!==id);return filtered.map((c,i)=>({...c,id:i+1}));});
+  const editColacion=(id,item,responsable)=>setColaciones(col=>col.map(c=>c.id===id?{...c,item,responsable}:c));
   const saveCell=useCallback((rowId,day)=>{
     setSchedule(sch=>sch.map(r=>{if(r.id!==rowId)return r;if(r.type==="common")return{...r,label:editVal};return{...r,days:{...r.days,[day]:editVal}};}));
     setEditingCell(null);
@@ -375,6 +466,7 @@ function AdminPanel({schedule,setSchedule,events,setEvents,info,setInfo,onLogout
 
   const sideItems=[
     {key:"horario",label:"Horario",icon:<IconClock/>},
+    {key:"colaciones",label:"Colaciones",icon:<IconApple/>},
     {key:"eventos",label:"Eventos",icon:<IconCal/>},
     {key:"info",label:"Información",icon:<IconBell/>},
   ];
@@ -435,6 +527,34 @@ function AdminPanel({schedule,setSchedule,events,setEvents,info,setInfo,onLogout
             <p style={{margin:"0 0 14px",fontSize:13,color:"#7A8194"}}>{mobile?"Selecciona un día y toca cualquier actividad para editarla.":"Haz clic en cualquier celda para editarla."}</p>
             <ScheduleView schedule={schedule} mobile={mobile} isAdmin editingCell={editingCell} setEditingCell={setEditingCell} editVal={editVal} setEditVal={setEditVal} saveCell={saveCell}/>
           </div>
+        )}
+
+        {/* ADMIN COLACIONES */}
+        {section==="colaciones"&&(
+          <>
+            <div style={S.adminCard}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,flexWrap:"wrap",gap:8}}>
+                <h3 style={{margin:0,fontSize:16,fontWeight:700}}>Gestionar colaciones</h3>
+                {!showColForm&&<button style={S.primaryBtn} onClick={()=>setShowColForm(true)}><IconPlus/><span>Agregar</span></button>}
+              </div>
+              {showColForm&&(
+                <div style={{padding:mobile?14:20,background:"#FAFAF8",borderRadius:12,border:"1.5px solid #E8E5DD",marginBottom:16}}>
+                  <div style={{display:"grid",gridTemplateColumns:mobile?"1fr":"1fr 1fr",gap:12}}>
+                    <div style={S.fg}><label style={S.fl}>Colación</label><input style={S.fi} placeholder="Ej: Manzana" value={newCol.item} onChange={e=>setNewCol({...newCol,item:e.target.value})}/></div>
+                    <div style={S.fg}><label style={S.fl}>Responsable (opcional)</label><input style={S.fi} placeholder="Ej: Sol" value={newCol.responsable} onChange={e=>setNewCol({...newCol,responsable:e.target.value})}/></div>
+                  </div>
+                  <div style={{display:"flex",gap:10,justifyContent:"flex-end",marginTop:14}}>
+                    <button style={S.ghostBtn} onClick={()=>setShowColForm(false)}>Cancelar</button>
+                    <button style={S.primaryBtn} onClick={addColacion}>Agregar</button>
+                  </div>
+                </div>
+              )}
+              <p style={{margin:"0 0 12px",fontSize:13,color:"#7A8194"}}>Toca el ícono de lápiz para editar. La numeración se actualiza automáticamente al eliminar.</p>
+            </div>
+            <div style={{marginTop:16}}>
+              <ColacionesBoard colaciones={colaciones} mobile={mobile} onRemove={removeColacion} onEdit={editColacion}/>
+            </div>
+          </>
         )}
 
         {/* ADMIN EVENTOS */}

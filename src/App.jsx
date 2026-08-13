@@ -45,22 +45,26 @@ const DEFAULT_INFO=[
 ];
 
 const DEFAULT_COLACIONES=[
-  {id:1,item:"Uvas",responsable:""},
-  {id:2,item:"Plátano",responsable:""},
-  {id:3,item:"Plátano",responsable:""},
-  {id:4,item:"Manzana",responsable:"Sol"},
-  {id:5,item:"Naranja",responsable:"Santi"},
-  {id:6,item:"Bastones de zanahoria",responsable:"Galeano"},
-  {id:7,item:"Brócoli / Huevos duros",responsable:"Damián"},
-  {id:8,item:"Bastones de apio",responsable:""},
-  {id:9,item:"Frutos secos",responsable:""},
-  {id:10,item:"Pan para rebanar + mantequilla, mantequilla de maní, pasta de dátil u otra opción",responsable:"Newen"},
-  {id:11,item:"Panqueque de avena",responsable:""},
-  {id:12,item:"Galletas de arroz o salvado integral + palta, hummus u otro",responsable:"Alma"},
-  {id:13,item:"Pera",responsable:""},
+  {id:1,item:"Uvas"},
+  {id:2,item:"Plátano"},
+  {id:3,item:"Plátano"},
+  {id:4,item:"Manzana"},
+  {id:5,item:"Naranja"},
+  {id:6,item:"Bastones de zanahoria"},
+  {id:7,item:"Brócoli / Huevos duros"},
+  {id:8,item:"Bastones de apio"},
+  {id:9,item:"Frutos secos"},
+  {id:10,item:"Pan para rebanar + mantequilla, mantequilla de maní, pasta de dátil u otra opción"},
+  {id:11,item:"Panqueque de avena"},
+  {id:12,item:"Galletas de arroz o salvado integral + palta, hummus u otro"},
+  {id:13,item:"Pera"},
 ];
 
+const DEFAULT_KIDS=["Sol","Santi","Galeano","Damián","Newen","Alma","","","","","",""];
+const DEFAULT_SORTEO=[];
+
 const COLACION_EMOJIS={"Uvas":"🍇","Plátano":"🍌","Manzana":"🍎","Naranja":"🍊","Bastones de zanahoria":"🥕","Brócoli / Huevos duros":"🥦","Bastones de apio":"🥬","Frutos secos":"🥜","Pan para rebanar + mantequilla, mantequilla de maní, pasta de dátil u otra opción":"🍞","Panqueque de avena":"🥞","Galletas de arroz o salvado integral + palta, hummus u otro":"🍘","Pera":"🍐"};
+function getEmoji(item){return COLACION_EMOJIS[item]||Object.entries(COLACION_EMOJIS).find(([k])=>item.toLowerCase().includes(k.toLowerCase().split(" ")[0]))?.[1]||"🍽️";}
 
 /* ══════════════════════════════════════════════
    HELPERS
@@ -110,10 +114,12 @@ export default function App(){
   const [events,setEvents]=useState(DEFAULT_EVENTS);
   const [info,setInfo]=useState(DEFAULT_INFO);
   const [colaciones,setColaciones]=useState(DEFAULT_COLACIONES);
+  const [kids,setKids]=useState(DEFAULT_KIDS);
+  const [sorteo,setSorteo]=useState(DEFAULT_SORTEO);
   const handleLogin=()=>{if(pw==="siembra2026"){setMode("admin");setPw("");setPwError(false);}else setPwError(true);};
   if(mode==="login")return <LoginScreen pw={pw} setPw={setPw} error={pwError} onLogin={handleLogin} onBack={()=>{setMode("public");setPwError(false);setPw("");}}/>;
-  if(mode==="admin")return <AdminPanel schedule={schedule} setSchedule={setSchedule} events={events} setEvents={setEvents} info={info} setInfo={setInfo} colaciones={colaciones} setColaciones={setColaciones} onLogout={()=>setMode("public")}/>;
-  return <PublicView schedule={schedule} events={events} info={info} colaciones={colaciones} onAdmin={()=>setMode("login")}/>;
+  if(mode==="admin")return <AdminPanel schedule={schedule} setSchedule={setSchedule} events={events} setEvents={setEvents} info={info} setInfo={setInfo} colaciones={colaciones} setColaciones={setColaciones} kids={kids} setKids={setKids} sorteo={sorteo} setSorteo={setSorteo} onLogout={()=>setMode("public")}/>;
+  return <PublicView schedule={schedule} events={events} info={info} colaciones={colaciones} sorteo={sorteo} onAdmin={()=>setMode("login")}/>;
 }
 
 /* ══════════════════════════════════════════════
@@ -139,7 +145,7 @@ function LoginScreen({pw,setPw,error,onLogin,onBack}){
 /* ══════════════════════════════════════════════
    PUBLIC VIEW
    ══════════════════════════════════════════════ */
-function PublicView({schedule,events,info,colaciones,onAdmin}){
+function PublicView({schedule,events,info,colaciones,sorteo,onAdmin}){
   const [tab,setTab]=useState("horario");
   const [calYear,setCalYear]=useState(2026);
   const [expandedMonth,setExpandedMonth]=useState(null);
@@ -167,7 +173,7 @@ function PublicView({schedule,events,info,colaciones,onAdmin}){
 
       <main style={{maxWidth:1100,margin:"0 auto",padding:mobile?"16px 12px 60px":"24px 24px 60px"}}>
         {tab==="horario"&&<ScheduleView schedule={schedule} mobile={mobile}/>}
-        {tab==="colaciones"&&<ColacionesBoard colaciones={colaciones} mobile={mobile} readOnly/>}
+        {tab==="colaciones"&&<ColacionesBoard colaciones={colaciones} sorteo={sorteo} mobile={mobile} readOnly/>}
         {tab==="calendario"&&<YearCalendar year={calYear} setYear={setCalYear} events={events} evByDate={evByDate} expandedMonth={expandedMonth} setExpandedMonth={setExpandedMonth} readOnly mobile={mobile}/>}
         {tab==="info"&&<InfoBoard info={info} readOnly mobile={mobile}/>}
       </main>
@@ -368,65 +374,199 @@ function InfoBoard({info,readOnly,onRemove,mobile}){
 }
 
 /* ══════════════════════════════════════════════
-   COLACIONES BOARD
+   COLACIONES BOARD (public + admin shared)
    ══════════════════════════════════════════════ */
-function ColacionesBoard({colaciones,mobile,readOnly,onRemove,onEdit}){
+function ColacionesBoard({colaciones,sorteo,mobile,readOnly,onEditItem,onRemoveItem,onAddItem}){
   const [editId,setEditId]=useState(null);
-  const [editItem,setEditItem]=useState("");
-  const [editResp,setEditResp]=useState("");
+  const [editVal,setEditVal]=useState("");
+  const startEdit=(c)=>{setEditId(c.id);setEditVal(c.item);};
+  const saveEdit=()=>{if(onEditItem&&editId!=null)onEditItem(editId,editVal);setEditId(null);};
 
-  const startEdit=(c)=>{setEditId(c.id);setEditItem(c.item);setEditResp(c.responsable);};
-  const saveEdit=()=>{if(onEdit&&editId!=null){onEdit(editId,editItem,editResp);}setEditId(null);};
+  const hasSorteo=sorteo&&sorteo.length>0;
 
   return(
     <div style={S.card}>
-      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:6}}>
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:4}}>
         <span style={{fontSize:28}}>🍎</span>
         <div>
-          <h2 style={{margin:0,fontSize:mobile?16:18,fontWeight:700}}>Colaciones</h2>
-          <p style={{margin:0,fontSize:12,color:"#7A8194"}}>Calendario rotativo de colaciones compartidas</p>
+          <h2 style={{margin:0,fontSize:mobile?16:18,fontWeight:700}}>Colaciones Compartidas</h2>
+          <p style={{margin:0,fontSize:12,color:"#7A8194"}}>{hasSorteo?"Asignación del semestre — cada semana rota al siguiente número":"Esperando sorteo del semestre"}</p>
         </div>
       </div>
-      <div style={{marginTop:16,display:"grid",gridTemplateColumns:mobile?"1fr":"1fr 1fr",gap:mobile?8:10}}>
-        {colaciones.map((c)=>{
-          const emoji=COLACION_EMOJIS[c.item]||"🍽️";
-          const isEditing=editId===c.id;
-          return(
-            <div key={c.id} style={{display:"flex",alignItems:"center",gap:12,padding:mobile?"12px 14px":"14px 18px",borderRadius:12,background:c.id%2===0?"#FFFDF7":"#FAFAF8",border:"1px solid #ECEAE4",transition:"all .15s"}}>
-              <div style={{width:mobile?32:38,height:mobile?32:38,borderRadius:10,background:"#F0EDE6",display:"flex",alignItems:"center",justifyContent:"center",fontSize:mobile?16:20,flexShrink:0}}>
-                {emoji}
-              </div>
-              <div style={{width:mobile?22:28,height:mobile?22:28,borderRadius:"50%",background:"#5B8A72",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:mobile?11:12,fontWeight:800,flexShrink:0}}>
-                {c.id}
-              </div>
-              {isEditing?(
-                <div style={{flex:1,display:"flex",flexDirection:"column",gap:4}}>
-                  <input value={editItem} onChange={e=>setEditItem(e.target.value)} style={{...S.fi,padding:"6px 10px",fontSize:13}} placeholder="Colación"/>
-                  <div style={{display:"flex",gap:6,alignItems:"center"}}>
-                    <input value={editResp} onChange={e=>setEditResp(e.target.value)} style={{...S.fi,padding:"5px 10px",fontSize:12,flex:1}} placeholder="Responsable (opcional)"/>
-                    <button onClick={saveEdit} style={{...S.primaryBtn,padding:"5px 12px",fontSize:12}}>OK</button>
+
+      {!hasSorteo&&readOnly&&(
+        <div style={{textAlign:"center",padding:"40px 20px",color:"#999"}}>
+          <span style={{fontSize:48,display:"block",marginBottom:12}}>🎰</span>
+          <p style={{fontSize:15,fontWeight:600,color:"#7A8194"}}>El sorteo del semestre aún no se ha realizado</p>
+          <p style={{fontSize:13}}>El equipo docente realizará la tómbola próximamente</p>
+        </div>
+      )}
+
+      {(hasSorteo||!readOnly)&&(
+        <div style={{marginTop:16,display:"flex",flexDirection:"column",gap:mobile?6:8}}>
+          {colaciones.map((c,idx)=>{
+            const emoji=getEmoji(c.item);
+            const kid=hasSorteo?(sorteo[idx%sorteo.length]||"—"):"";
+            const isEditing=editId===c.id;
+            const rowColors=["#FAFAF8","#FFFDF7"];
+            return(
+              <div key={c.id} style={{display:"flex",alignItems:isEditing?"flex-start":"center",gap:mobile?8:12,padding:mobile?"10px 12px":"14px 18px",borderRadius:12,background:rowColors[idx%2],border:"1px solid #ECEAE4"}}>
+                {/* Number */}
+                <div style={{width:mobile?26:32,height:mobile?26:32,borderRadius:"50%",background:"#5B8A72",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:mobile?12:13,fontWeight:800,flexShrink:0}}>
+                  {c.id}
+                </div>
+                {/* Emoji */}
+                <div style={{width:mobile?30:36,height:mobile?30:36,borderRadius:10,background:"#F0EDE6",display:"flex",alignItems:"center",justifyContent:"center",fontSize:mobile?16:20,flexShrink:0}}>
+                  {emoji}
+                </div>
+                {/* Content */}
+                {isEditing?(
+                  <div style={{flex:1,display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
+                    <input autoFocus value={editVal} onChange={e=>setEditVal(e.target.value)} onKeyDown={e=>e.key==="Enter"&&saveEdit()} style={{...S.fi,padding:"6px 10px",fontSize:13,flex:1,minWidth:120}}/>
+                    <button onClick={saveEdit} style={{...S.primaryBtn,padding:"5px 14px",fontSize:12}}>OK</button>
                     <button onClick={()=>setEditId(null)} style={{...S.ghostBtn,padding:"5px 10px",fontSize:12}}>✕</button>
                   </div>
-                </div>
-              ):(
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontSize:mobile?13:14,fontWeight:600,color:"#1B2A4A",lineHeight:1.4}}>{c.item}</div>
-                  {c.responsable&&(
-                    <div style={{fontSize:12,color:"#5B8A72",fontWeight:600,marginTop:2}}>👤 {c.responsable}</div>
-                  )}
-                </div>
-              )}
-              {!readOnly&&!isEditing&&(
-                <div style={{display:"flex",gap:4,flexShrink:0}}>
-                  <button style={S.iconBtn} onClick={()=>startEdit(c)}><IconEdit/></button>
-                  <button style={{...S.iconBtn,color:"#E07A5F"}} onClick={()=>onRemove?.(c.id)}><IconTrash/></button>
-                </div>
-              )}
-            </div>
-          );
-        })}
+                ):(
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:mobile?13:14,fontWeight:600,color:"#1B2A4A",lineHeight:1.4}}>{c.item}</div>
+                    {hasSorteo&&kid&&(
+                      <div style={{fontSize:12,fontWeight:700,color:"#E07A5F",marginTop:2}}>👤 {kid}</div>
+                    )}
+                  </div>
+                )}
+                {/* Admin actions */}
+                {!readOnly&&!isEditing&&(
+                  <div style={{display:"flex",gap:2,flexShrink:0}}>
+                    <button style={S.iconBtn} onClick={()=>startEdit(c)} title="Editar"><IconEdit/></button>
+                    <button style={{...S.iconBtn,color:"#E07A5F"}} onClick={()=>onRemoveItem?.(c.id)} title="Eliminar"><IconTrash/></button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {hasSorteo&&(
+        <p style={{marginTop:14,fontSize:12,color:"#7A8194",fontStyle:"italic"}}>
+          <span style={{color:"#5B8A72",fontWeight:700}}>●</span> Cada semana se avanza al siguiente número. Al llegar al 13 se vuelve al 1. Los nombres fueron asignados por sorteo al inicio del semestre.
+        </p>
+      )}
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════
+   TOMBOLA COMPONENT (admin only)
+   ══════════════════════════════════════════════ */
+function TombolaPanel({kids,setKids,sorteo,setSorteo,colaciones,mobile}){
+  const [inputName,setInputName]=useState("");
+  const [spinning,setSpinning]=useState(false);
+  const [spinDisplay,setSpinDisplay]=useState([]);
+  const [spinStep,setSpinStep]=useState(0);
+
+  const validKids=kids.filter(k=>k.trim()!=="");
+  const addKid=()=>{const n=inputName.trim();if(!n)return;setKids(k=>[...k,n]);setInputName("");};
+  const removeKid=(idx)=>setKids(k=>k.filter((_,i)=>i!==idx));
+  const updateKid=(idx,val)=>setKids(k=>k.map((v,i)=>i===idx?val:v));
+
+  const runTombola=()=>{
+    if(validKids.length<2)return;
+    setSpinning(true);
+    setSpinDisplay([]);
+    setSpinStep(0);
+
+    const shuffled=[...validKids];
+    for(let i=shuffled.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[shuffled[i],shuffled[j]]=[shuffled[j],shuffled[i]];}
+
+    let step=0;
+    const interval=setInterval(()=>{
+      if(step<shuffled.length){
+        setSpinDisplay(prev=>[...prev,shuffled[step]]);
+        setSpinStep(step+1);
+        step++;
+      } else {
+        clearInterval(interval);
+        setTimeout(()=>{
+          setSorteo(shuffled);
+          setSpinning(false);
+        },600);
+      }
+    },400);
+  };
+
+  const hasSorteo=sorteo&&sorteo.length>0;
+
+  return(
+    <div style={{display:"flex",flexDirection:"column",gap:16}}>
+      {/* KIDS INPUT */}
+      <div style={S.adminCard}>
+        <h3 style={{margin:"0 0 4px",fontSize:16,fontWeight:700}}>👧🧒 Niños del curso</h3>
+        <p style={{margin:"0 0 14px",fontSize:13,color:"#7A8194"}}>Agrega los nombres de los 12–15 niños. Luego sortea para asignar colaciones.</p>
+        <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap"}}>
+          <input style={{...S.fi,flex:1,minWidth:160}} placeholder="Nombre del niño/a" value={inputName} onChange={e=>setInputName(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addKid()}/>
+          <button style={S.primaryBtn} onClick={addKid}><IconPlus/> Agregar</button>
+        </div>
+        <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+          {kids.map((k,i)=>(
+            k.trim()!==""&&(
+              <div key={i} style={{display:"flex",alignItems:"center",gap:6,padding:"6px 12px",borderRadius:20,background:"#EDF6F0",border:"1px solid #C8E0D4"}}>
+                {/* Editable name */}
+                <input value={k} onChange={e=>updateKid(i,e.target.value)} style={{border:"none",background:"transparent",fontSize:13,fontWeight:600,color:"#1B2A4A",width:Math.max(40,k.length*9),outline:"none"}}/>
+                <button onClick={()=>removeKid(i)} style={{background:"none",border:"none",color:"#E07A5F",cursor:"pointer",fontSize:16,padding:0,lineHeight:1}}>×</button>
+              </div>
+            )
+          ))}
+        </div>
+        <div style={{marginTop:12,fontSize:13,color:"#5B8A72",fontWeight:600}}>{validKids.length} niño{validKids.length!==1?"s":""} registrado{validKids.length!==1?"s":""}</div>
       </div>
-      <p style={{marginTop:14,fontSize:12,color:"#7A8194",fontStyle:"italic"}}><span style={{color:"#5B8A72",fontWeight:700}}>●</span> La lista rota día a día. El nombre indica quién trae la colación esa jornada.</p>
+
+      {/* TOMBOLA */}
+      <div style={{...S.adminCard,textAlign:"center",background:spinning?"#FFFDF7":"#fff",border:spinning?"2px solid #E8A838":"none",transition:"all .3s"}}>
+        <div style={{fontSize:48,marginBottom:8}}>{spinning?"🎰":"🎲"}</div>
+        <h3 style={{margin:"0 0 4px",fontSize:18,fontWeight:800}}>Tómbola del Semestre</h3>
+        <p style={{margin:"0 0 16px",fontSize:13,color:"#7A8194"}}>
+          {hasSorteo&&!spinning?"✅ Sorteo realizado — los nombres están asignados":"Sortea el orden de los niños para asignarlos a las colaciones"}
+        </p>
+
+        {spinning&&(
+          <div style={{margin:"20px auto",maxWidth:400}}>
+            <div style={{display:"flex",flexDirection:"column",gap:6}}>
+              {spinDisplay.map((name,i)=>(
+                <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 14px",borderRadius:10,background:"#EDF6F0",animation:"fadeIn 0.3s ease"}}>
+                  <div style={{width:26,height:26,borderRadius:"50%",background:"#5B8A72",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:800}}>{i+1}</div>
+                  <span style={{fontSize:14,fontWeight:700,color:"#1B2A4A"}}>{name}</span>
+                  <span style={{marginLeft:"auto",fontSize:13,color:"#7A8194"}}>{colaciones[i%colaciones.length]?.item?.split(" ").slice(0,3).join(" ")}</span>
+                </div>
+              ))}
+            </div>
+            {spinStep<validKids.length&&(
+              <div style={{marginTop:10,fontSize:24,animation:"pulse 0.4s infinite alternate"}}>🎰</div>
+            )}
+          </div>
+        )}
+
+        {hasSorteo&&!spinning&&(
+          <div style={{margin:"16px auto",maxWidth:500,textAlign:"left"}}>
+            <div style={{display:"grid",gridTemplateColumns:mobile?"1fr":"1fr 1fr",gap:6}}>
+              {sorteo.map((name,i)=>(
+                <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",borderRadius:10,background:i%2===0?"#FAFAF8":"#FFFDF7",border:"1px solid #ECEAE4"}}>
+                  <div style={{width:24,height:24,borderRadius:"50%",background:"#5B8A72",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:800}}>{i+1}</div>
+                  <span style={{fontSize:13,fontWeight:700,color:"#1B2A4A",flex:1}}>{name}</span>
+                  <span style={{fontSize:18}}>{getEmoji(colaciones[i%colaciones.length]?.item||"")}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <button onClick={runTombola} disabled={validKids.length<2||spinning}
+          style={{...S.primaryBtn,margin:"0 auto",padding:"12px 32px",fontSize:15,borderRadius:14,background:validKids.length<2?"#ccc":(spinning?"#E8A838":"#1B2A4A"),cursor:validKids.length<2?"not-allowed":"pointer",transition:"all .2s"}}>
+          {spinning?"Sorteando...":hasSorteo?"🔄 Volver a sortear":"🎲 Sortear"}
+        </button>
+        {validKids.length<2&&<p style={{marginTop:8,fontSize:12,color:"#E07A5F"}}>Agrega al menos 2 niños para sortear</p>}
+        {hasSorteo&&!spinning&&<p style={{marginTop:8,fontSize:12,color:"#7A8194"}}>El sorteo queda fijo para todo el semestre. Puedes volver a sortear si es necesario.</p>}
+      </div>
     </div>
   );
 }
@@ -434,7 +574,7 @@ function ColacionesBoard({colaciones,mobile,readOnly,onRemove,onEdit}){
 /* ══════════════════════════════════════════════
    ADMIN PANEL
    ══════════════════════════════════════════════ */
-function AdminPanel({schedule,setSchedule,events,setEvents,info,setInfo,colaciones,setColaciones,onLogout}){
+function AdminPanel({schedule,setSchedule,events,setEvents,info,setInfo,colaciones,setColaciones,kids,setKids,sorteo,setSorteo,onLogout}){
   const [section,setSection]=useState("horario");
   const [calYear,setCalYear]=useState(2026);
   const [expandedMonth,setExpandedMonth]=useState(null);
@@ -450,15 +590,15 @@ function AdminPanel({schedule,setSchedule,events,setEvents,info,setInfo,colacion
   const [editVal,setEditVal]=useState("");
 
   const [showColForm,setShowColForm]=useState(false);
-  const [newCol,setNewCol]=useState({item:"",responsable:""});
+  const [newColItem,setNewColItem]=useState("");
 
   const addEvent=()=>{if(!newEv.title||!newEv.date)return;setEvents(ev=>[...ev,{...newEv,id:Date.now()}]);setNewEv({title:"",date:"",color:"#5B8A72"});setShowEvForm(false);};
   const removeEvent=(id)=>setEvents(ev=>ev.filter(e=>e.id!==id));
   const addInfo=()=>{if(!newInfo.title||!newInfo.body)return;setInfo(inf=>[{...newInfo,id:Date.now(),date:fmt(new Date())},...inf]);setNewInfo({title:"",body:"",priority:"media"});setShowInfoForm(false);};
   const removeInfo=(id)=>setInfo(inf=>inf.filter(i=>i.id!==id));
-  const addColacion=()=>{if(!newCol.item)return;const maxId=colaciones.reduce((m,c)=>Math.max(m,c.id),0);setColaciones(col=>[...col,{id:maxId+1,item:newCol.item,responsable:newCol.responsable}]);setNewCol({item:"",responsable:""});setShowColForm(false);};
+  const addColacion=()=>{if(!newColItem.trim())return;const maxId=colaciones.reduce((m,c)=>Math.max(m,c.id),0);setColaciones(col=>[...col,{id:maxId+1,item:newColItem.trim()}]);setNewColItem("");setShowColForm(false);};
   const removeColacion=(id)=>setColaciones(col=>{const filtered=col.filter(c=>c.id!==id);return filtered.map((c,i)=>({...c,id:i+1}));});
-  const editColacion=(id,item,responsable)=>setColaciones(col=>col.map(c=>c.id===id?{...c,item,responsable}:c));
+  const editColacionItem=(id,item)=>setColaciones(col=>col.map(c=>c.id===id?{...c,item}:c));
   const saveCell=useCallback((rowId,day)=>{
     setSchedule(sch=>sch.map(r=>{if(r.id!==rowId)return r;if(r.type==="common")return{...r,label:editVal};return{...r,days:{...r.days,[day]:editVal}};}));
     setEditingCell(null);
@@ -532,16 +672,20 @@ function AdminPanel({schedule,setSchedule,events,setEvents,info,setInfo,colacion
         {/* ADMIN COLACIONES */}
         {section==="colaciones"&&(
           <>
-            <div style={S.adminCard}>
+            {/* Tombola panel */}
+            <TombolaPanel kids={kids} setKids={setKids} sorteo={sorteo} setSorteo={setSorteo} colaciones={colaciones} mobile={mobile}/>
+
+            {/* Manage colaciones list */}
+            <div style={{...S.adminCard,marginTop:16}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,flexWrap:"wrap",gap:8}}>
-                <h3 style={{margin:0,fontSize:16,fontWeight:700}}>Gestionar colaciones</h3>
+                <h3 style={{margin:0,fontSize:16,fontWeight:700}}>🍽️ Lista de colaciones</h3>
                 {!showColForm&&<button style={S.primaryBtn} onClick={()=>setShowColForm(true)}><IconPlus/><span>Agregar</span></button>}
               </div>
               {showColForm&&(
                 <div style={{padding:mobile?14:20,background:"#FAFAF8",borderRadius:12,border:"1.5px solid #E8E5DD",marginBottom:16}}>
-                  <div style={{display:"grid",gridTemplateColumns:mobile?"1fr":"1fr 1fr",gap:12}}>
-                    <div style={S.fg}><label style={S.fl}>Colación</label><input style={S.fi} placeholder="Ej: Manzana" value={newCol.item} onChange={e=>setNewCol({...newCol,item:e.target.value})}/></div>
-                    <div style={S.fg}><label style={S.fl}>Responsable (opcional)</label><input style={S.fi} placeholder="Ej: Sol" value={newCol.responsable} onChange={e=>setNewCol({...newCol,responsable:e.target.value})}/></div>
+                  <div style={S.fg}>
+                    <label style={S.fl}>Nueva colación</label>
+                    <input style={S.fi} placeholder="Ej: Manzana" value={newColItem} onChange={e=>setNewColItem(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addColacion()}/>
                   </div>
                   <div style={{display:"flex",gap:10,justifyContent:"flex-end",marginTop:14}}>
                     <button style={S.ghostBtn} onClick={()=>setShowColForm(false)}>Cancelar</button>
@@ -549,10 +693,11 @@ function AdminPanel({schedule,setSchedule,events,setEvents,info,setInfo,colacion
                   </div>
                 </div>
               )}
-              <p style={{margin:"0 0 12px",fontSize:13,color:"#7A8194"}}>Toca el ícono de lápiz para editar. La numeración se actualiza automáticamente al eliminar.</p>
             </div>
+
+            {/* Colaciones board with edit/delete */}
             <div style={{marginTop:16}}>
-              <ColacionesBoard colaciones={colaciones} mobile={mobile} onRemove={removeColacion} onEdit={editColacion}/>
+              <ColacionesBoard colaciones={colaciones} sorteo={sorteo} mobile={mobile} onEditItem={editColacionItem} onRemoveItem={removeColacion}/>
             </div>
           </>
         )}

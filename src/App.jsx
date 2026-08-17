@@ -287,7 +287,13 @@ function ScheduleView({schedule,mobile,isAdmin,editingCell,setEditingCell,editVa
 /* ══════════════════════════════════════════════
    YEAR CALENDAR
    ══════════════════════════════════════════════ */
+const DAYS_FULL=["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];
+
 function YearCalendar({year,setYear,events,evByDate,expandedMonth,setExpandedMonth,readOnly,onRemoveEvent,mobile}){
+  const isExp=expandedMonth!==null;
+  const expCells=isExp?getMonthGrid(year,expandedMonth):[];
+  const expEvents=isExp?events.filter(e=>{const d=new Date(e.date+"T12:00:00");return d.getMonth()===expandedMonth&&d.getFullYear()===year;}).sort((a,b)=>a.date.localeCompare(b.date)):[];
+
   return(
     <div style={S.card}>
       <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20}}>
@@ -295,17 +301,109 @@ function YearCalendar({year,setYear,events,evByDate,expandedMonth,setExpandedMon
         <h2 style={{margin:0,fontSize:mobile?18:22,fontWeight:800,minWidth:50,textAlign:"center"}}>{year}</h2>
         <button style={S.yearBtn} onClick={()=>setYear(y=>y+1)}>›</button>
       </div>
-      <div style={{display:"grid",gridTemplateColumns:mobile?"1fr 1fr":"repeat(auto-fill,minmax(230px,1fr))",gap:mobile?10:14}}>
+
+      {/* ── EXPANDED MONTH VIEW ── */}
+      {isExp&&(
+        <div style={{marginBottom:20}}>
+          {/* Header */}
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16,flexWrap:"wrap",gap:8}}>
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <button onClick={()=>setExpandedMonth(expandedMonth>0?expandedMonth-1:11)} style={S.yearBtn}>‹</button>
+              <h3 style={{margin:0,fontSize:mobile?18:22,fontWeight:800,color:"#1B2A4A"}}>{MONTHS[expandedMonth]}</h3>
+              <button onClick={()=>setExpandedMonth(expandedMonth<11?expandedMonth+1:0)} style={S.yearBtn}>›</button>
+            </div>
+            <button onClick={()=>setExpandedMonth(null)} style={{display:"flex",alignItems:"center",gap:6,padding:"7px 14px",borderRadius:8,border:"1.5px solid #E2E1DC",background:"#fff",fontSize:13,fontWeight:600,cursor:"pointer",color:"#7A8194"}}>
+              ← Todos los meses
+            </button>
+          </div>
+
+          {/* Big calendar grid */}
+          <div style={{borderRadius:12,border:"1.5px solid #E8E5DD",overflow:"hidden",background:"#fff"}}>
+            {/* Day headers */}
+            <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",background:"#F7F5F0",borderBottom:"1.5px solid #E8E5DD"}}>
+              {DAYS_FULL.map(d=><div key={d} style={{padding:mobile?"8px 4px":"10px 8px",textAlign:"center",fontSize:mobile?11:12,fontWeight:700,color:"#7A8194",textTransform:"uppercase",letterSpacing:"0.05em"}}>{d}</div>)}
+            </div>
+            {/* Day cells */}
+            <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)"}}>
+              {expCells.map(({date:d,out},ci)=>{
+                const ds=fmt(d);
+                const dayEv=evByDate[ds]||[];
+                const td=isToday(d);
+                const isWeekend=ci%7>=5;
+                return(
+                  <div key={ci} style={{
+                    minHeight:mobile?60:80,padding:mobile?"4px 3px":"6px 8px",
+                    borderBottom:"1px solid #F0EDE6",borderRight:ci%7<6?"1px solid #F0EDE6":"none",
+                    background:out?"#FAFAF8":(td?"#FFFDF7":(isWeekend?"#FCFBF9":"#fff")),
+                    opacity:out?0.35:1,
+                    transition:"background .15s"
+                  }}>
+                    <div style={{fontSize:mobile?11:13,fontWeight:td?800:500,color:td?"#E8A838":"#555",marginBottom:3}}>
+                      {td?<span style={{background:"#E8A838",color:"#fff",borderRadius:"50%",width:mobile?20:24,height:mobile?20:24,display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:mobile?10:12}}>{d.getDate()}</span>:d.getDate()}
+                    </div>
+                    <div style={{display:"flex",flexDirection:"column",gap:2}}>
+                      {dayEv.slice(0,mobile?1:2).map(ev=>(
+                        <div key={ev.id} style={{
+                          padding:mobile?"2px 4px":"3px 6px",borderRadius:4,
+                          background:ev.color+"18",borderLeft:`3px solid ${ev.color}`,
+                          fontSize:mobile?9:11,fontWeight:600,color:"#1B2A4A",
+                          lineHeight:1.3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"
+                        }}>
+                          {ev.title}
+                        </div>
+                      ))}
+                      {dayEv.length>(mobile?1:2)&&(
+                        <span style={{fontSize:9,color:"#999",fontWeight:600}}>+{dayEv.length-(mobile?1:2)} más</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Events list for month */}
+          <div style={{marginTop:16,padding:mobile?14:20,background:"#FAFAF8",borderRadius:12,border:"1.5px solid #ECEAE4"}}>
+            <h4 style={{margin:"0 0 12px",fontSize:15,fontWeight:700,color:"#1B2A4A"}}>
+              Eventos en {MONTHS[expandedMonth]} ({expEvents.length})
+            </h4>
+            {expEvents.length===0&&<p style={{fontSize:13,color:"#aaa",textAlign:"center",padding:"16px 0"}}>No hay eventos este mes</p>}
+            <div style={{display:"flex",flexDirection:"column",gap:8}}>
+              {expEvents.map(ev=>{
+                const day=parseInt(ev.date.split("-")[2]);
+                const weekday=new Date(ev.date+"T12:00:00").getDay();
+                const dayName=["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"][weekday];
+                return(
+                  <div key={ev.id} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 16px",borderRadius:10,background:"#fff",border:"1px solid #ECEAE4"}}>
+                    <div style={{width:44,height:44,borderRadius:10,background:ev.color+"14",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",flexShrink:0,border:`1.5px solid ${ev.color}30`}}>
+                      <span style={{fontSize:10,fontWeight:700,color:ev.color,textTransform:"uppercase",lineHeight:1}}>{dayName}</span>
+                      <span style={{fontSize:18,fontWeight:800,color:ev.color,lineHeight:1.1}}>{day}</span>
+                    </div>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:14,fontWeight:700,color:"#1B2A4A"}}>{ev.title}</div>
+                      <div style={{fontSize:12,color:"#999",marginTop:1}}>{dayName} {day} de {MONTHS[expandedMonth]}</div>
+                    </div>
+                    <div style={{width:10,height:10,borderRadius:"50%",background:ev.color,flexShrink:0}}/>
+                    {!readOnly&&<button style={{...S.iconBtn,color:"#E07A5F"}} onClick={()=>onRemoveEvent?.(ev.id)}><IconTrash/></button>}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MINI MONTHS OVERVIEW ── */}
+      <div style={{display:"grid",gridTemplateColumns:mobile?"1fr 1fr":"repeat(auto-fill,minmax(230px,1fr))",gap:mobile?10:14,...(isExp?{opacity:0.5,pointerEvents:"none",maxHeight:0,overflow:"hidden",margin:0,gap:0}:{}),transition:"all .3s"}}>
         {MONTHS.map((mName,mi)=>{
           const cells=getMonthGrid(year,mi);
-          const isExp=expandedMonth===mi;
-          const monthEvents=events.filter(e=>{const d=new Date(e.date+"T12:00:00");return d.getMonth()===mi&&d.getFullYear()===year;}).sort((a,b)=>a.date.localeCompare(b.date));
+          const monthEvents=events.filter(e=>{const d=new Date(e.date+"T12:00:00");return d.getMonth()===mi&&d.getFullYear()===year;});
+          const hasEvents=monthEvents.length>0;
           return(
-            <div key={mi} style={{background:isExp?"#FFFDF7":"#FAFAF8",borderRadius:12,padding:mobile?10:14,border:`1.5px solid ${isExp?"#E8A838":"#ECEAE4"}`,transition:"all .2s",gridColumn:isExp&&!mobile?"span 2":"span 1"}}>
-              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8,cursor:"pointer"}} onClick={()=>setExpandedMonth(isExp?null:mi)}>
+            <div key={mi} onClick={()=>setExpandedMonth(mi)} style={{background:"#FAFAF8",borderRadius:12,padding:mobile?10:14,border:"1.5px solid #ECEAE4",cursor:"pointer",transition:"all .15s",position:"relative"}}>
+              {hasEvents&&<div style={{position:"absolute",top:10,right:12,width:20,height:20,borderRadius:"50%",background:"#E8A838",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:800}}>{monthEvents.length}</div>}
+              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
                 <span style={{fontSize:mobile?13:14,fontWeight:800,color:"#1B2A4A"}}>{mName}</span>
-                <span style={{fontSize:11,color:"#bbb"}}>{monthEvents.length>0?`${monthEvents.length}`:""}</span>
-                <span style={{fontSize:12,color:"#ccc",marginLeft:"auto"}}>{isExp?"▾":"▸"}</span>
               </div>
               <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:1,marginBottom:4}}>
                 {DAYS_SHORT.map((d,i)=><div key={i} style={{fontSize:9,fontWeight:700,textAlign:"center",color:"#BCBAB3"}}>{d}</div>)}
@@ -321,18 +419,6 @@ function YearCalendar({year,setYear,events,evByDate,expandedMonth,setExpandedMon
                   );
                 })}
               </div>
-              {isExp&&(
-                <div style={{marginTop:10,borderTop:"1px solid #ECEAE4",paddingTop:10,display:"flex",flexDirection:"column",gap:6}}>
-                  {monthEvents.map(ev=>(
-                    <div key={ev.id} style={{display:"flex",alignItems:"flex-start",gap:8}}>
-                      <div style={{width:8,height:8,borderRadius:"50%",background:ev.color,flexShrink:0,marginTop:5}}/>
-                      <div style={{flex:1}}><span style={{fontSize:12,color:"#999",fontWeight:600,marginRight:6}}>{ev.date.split("-")[2]}/{String(mi+1).padStart(2,"0")}</span><span style={{fontSize:13,fontWeight:600,color:"#1B2A4A"}}>{ev.title}</span></div>
-                      {!readOnly&&<button style={S.iconBtn} onClick={()=>onRemoveEvent?.(ev.id)}><IconTrash/></button>}
-                    </div>
-                  ))}
-                  {monthEvents.length===0&&<p style={{fontSize:12,color:"#aaa",textAlign:"center",margin:"6px 0"}}>Sin eventos</p>}
-                </div>
-              )}
             </div>
           );
         })}

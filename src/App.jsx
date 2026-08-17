@@ -101,6 +101,15 @@ const IconEye=()=><svg width="18" height="18" viewBox="0 0 24 24" fill="none" st
 const IconMenu=()=><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 12h18M3 6h18M3 18h18"/></svg>;
 const IconX=()=><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>;
 const IconApple=()=><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 2c1 1 3 1 4 0M17.5 8C20 8 22 10.5 22 14c0 5-4 8-6 8s-2.5-1-4-1-2.5 1-4 1-6-3-6-8c0-3.5 2-6 4.5-6 1.5 0 2.5.5 3.5 1s2-.5 3.5-1z"/></svg>;
+const IconChat=()=><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>;
+const IconSend=()=><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>;
+
+const DEFAULT_MESSAGES=[
+  {id:1,from:"admin",name:"Profe",text:"¡Bienvenidos al chat de La Siembra! Aquí pueden dejar consultas, avisos o coordinar lo que necesiten. 🌱",time:"2026-07-28 09:00"},
+  {id:2,from:"parent",name:"Mamá de Sol",text:"¡Hola profe! ¿A qué hora es la reunión de apoderados del jueves?",time:"2026-07-28 10:15"},
+  {id:3,from:"admin",name:"Profe",text:"Hola! La reunión es a las 18:00 en la sala principal. Los esperamos 😊",time:"2026-07-28 10:22"},
+  {id:4,from:"parent",name:"Papá de Galeano",text:"Perfecto, ahí estaremos. Galeano lleva la colación mañana, ¿verdad?",time:"2026-07-28 11:05"},
+];
 const Leaf=({style})=><svg viewBox="0 0 40 60" fill="none" style={{width:28,height:42,opacity:.12,...style}}><path d="M20 0C20 0 0 20 0 40c0 11 9 20 20 20s20-9 20-20C40 20 20 0 20 0z" fill="#5B8A72"/><path d="M20 12v40M20 24c-6 4-10 10-12 16M20 30c6 4 10 10 12 14" stroke="#3D6B54" strokeWidth="1.2"/></svg>;
 
 /* ══════════════════════════════════════════════
@@ -116,10 +125,11 @@ export default function App(){
   const [colaciones,setColaciones]=useState(DEFAULT_COLACIONES);
   const [kids,setKids]=useState(DEFAULT_KIDS);
   const [sorteo,setSorteo]=useState(DEFAULT_SORTEO);
+  const [messages,setMessages]=useState(DEFAULT_MESSAGES);
   const handleLogin=()=>{if(pw==="siembra2026"){setMode("admin");setPw("");setPwError(false);}else setPwError(true);};
   if(mode==="login")return <LoginScreen pw={pw} setPw={setPw} error={pwError} onLogin={handleLogin} onBack={()=>{setMode("public");setPwError(false);setPw("");}}/>;
-  if(mode==="admin")return <AdminPanel schedule={schedule} setSchedule={setSchedule} events={events} setEvents={setEvents} info={info} setInfo={setInfo} colaciones={colaciones} setColaciones={setColaciones} kids={kids} setKids={setKids} sorteo={sorteo} setSorteo={setSorteo} onLogout={()=>setMode("public")}/>;
-  return <PublicView schedule={schedule} events={events} info={info} colaciones={colaciones} sorteo={sorteo} onAdmin={()=>setMode("login")}/>;
+  if(mode==="admin")return <AdminPanel schedule={schedule} setSchedule={setSchedule} events={events} setEvents={setEvents} info={info} setInfo={setInfo} colaciones={colaciones} setColaciones={setColaciones} kids={kids} setKids={setKids} sorteo={sorteo} setSorteo={setSorteo} messages={messages} setMessages={setMessages} onLogout={()=>setMode("public")}/>;
+  return <PublicView schedule={schedule} events={events} info={info} colaciones={colaciones} sorteo={sorteo} messages={messages} setMessages={setMessages} onAdmin={()=>setMode("login")}/>;
 }
 
 /* ══════════════════════════════════════════════
@@ -145,12 +155,13 @@ function LoginScreen({pw,setPw,error,onLogin,onBack}){
 /* ══════════════════════════════════════════════
    PUBLIC VIEW
    ══════════════════════════════════════════════ */
-function PublicView({schedule,events,info,colaciones,sorteo,onAdmin}){
+function PublicView({schedule,events,info,colaciones,sorteo,messages,setMessages,onAdmin}){
   const [tab,setTab]=useState("horario");
   const [calYear,setCalYear]=useState(2026);
   const [expandedMonth,setExpandedMonth]=useState(null);
   const mobile=useIsMobile();
   const evByDate=useMemo(()=>{const m={};events.forEach(e=>{if(!m[e.date])m[e.date]=[];m[e.date].push(e);});return m;},[events]);
+  const unread=messages.filter(m=>m.from==="admin"&&!m.read).length;
 
   return(
     <div style={{fontFamily:"'Inter','Segoe UI',system-ui,sans-serif",background:"#F0EDE6",minHeight:"100vh",color:"#1B2A4A"}}>
@@ -165,8 +176,8 @@ function PublicView({schedule,events,info,colaciones,sorteo,onAdmin}){
           <button onClick={onAdmin} style={{display:"flex",alignItems:"center",gap:6,padding:"7px 14px",borderRadius:10,border:"1.5px solid #D8D5CE",background:"rgba(255,255,255,0.6)",color:"#7A8194",fontSize:12,fontWeight:600,cursor:"pointer"}}><IconLock/>{!mobile&&<span>Admin</span>}</button>
         </div>
         <nav style={{display:"flex",gap:2,marginTop:14,maxWidth:1100,margin:"14px auto 0",overflowX:"auto",WebkitOverflowScrolling:"touch",msOverflowStyle:"none",scrollbarWidth:"none"}}>
-          {[["horario","Horario",<IconClock/>],["colaciones","Colaciones",<IconApple/>],["calendario","Calendario",<IconCal/>],["info","Información",<IconBell/>]].map(([k,l,ic])=>(
-            <button key={k} onClick={()=>setTab(k)} style={{display:"flex",alignItems:"center",gap:5,padding:mobile?"9px 14px":"10px 20px",border:"none",background:tab===k?"#fff":"transparent",fontSize:mobile?12:13,fontWeight:600,cursor:"pointer",color:tab===k?"#1B2A4A":"#7A8194",borderBottom:tab===k?"3px solid #5B8A72":"3px solid transparent",marginBottom:-3,borderRadius:"8px 8px 0 0",whiteSpace:"nowrap"}}>{ic}<span>{l}</span></button>
+          {[["horario","Horario",<IconClock/>],["colaciones","Colaciones",<IconApple/>],["calendario","Calendario",<IconCal/>],["info","Información",<IconBell/>],["chat","Chat",<IconChat/>]].map(([k,l,ic])=>(
+            <button key={k} onClick={()=>setTab(k)} style={{display:"flex",alignItems:"center",gap:5,padding:mobile?"9px 14px":"10px 20px",border:"none",background:tab===k?"#fff":"transparent",fontSize:mobile?12:13,fontWeight:600,cursor:"pointer",color:tab===k?"#1B2A4A":"#7A8194",borderBottom:tab===k?"3px solid #5B8A72":"3px solid transparent",marginBottom:-3,borderRadius:"8px 8px 0 0",whiteSpace:"nowrap",position:"relative"}}>{ic}<span>{l}</span></button>
           ))}
         </nav>
       </header>
@@ -176,6 +187,7 @@ function PublicView({schedule,events,info,colaciones,sorteo,onAdmin}){
         {tab==="colaciones"&&<ColacionesBoard colaciones={colaciones} sorteo={sorteo} mobile={mobile} readOnly/>}
         {tab==="calendario"&&<YearCalendar year={calYear} setYear={setCalYear} events={events} evByDate={evByDate} expandedMonth={expandedMonth} setExpandedMonth={setExpandedMonth} readOnly mobile={mobile}/>}
         {tab==="info"&&<InfoBoard info={info} readOnly mobile={mobile}/>}
+        {tab==="chat"&&<ChatView messages={messages} setMessages={setMessages} mobile={mobile} isAdmin={false}/>}
       </main>
     </div>
   );
@@ -658,9 +670,158 @@ function TombolaPanel({kids,setKids,sorteo,setSorteo,colaciones,mobile}){
 }
 
 /* ══════════════════════════════════════════════
+   CHAT VIEW
+   ══════════════════════════════════════════════ */
+function ChatView({messages,setMessages,mobile,isAdmin}){
+  const [text,setText]=useState("");
+  const [senderName,setSenderName]=useState("");
+  const [showNameInput,setShowNameInput]=useState(!isAdmin);
+  const chatEndRef=useCallback(node=>{if(node)node.scrollIntoView({behavior:"smooth"});},[messages]);
+
+  const sendMessage=()=>{
+    const t=text.trim();
+    if(!t)return;
+    const name=isAdmin?"Profe":(senderName.trim()||"Apoderado/a");
+    const now=new Date();
+    const timeStr=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")} ${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`;
+    setMessages(msgs=>[...msgs,{id:Date.now(),from:isAdmin?"admin":"parent",name,text:t,time:timeStr}]);
+    setText("");
+    if(!isAdmin&&senderName.trim())setShowNameInput(false);
+  };
+
+  const deleteMsg=(id)=>setMessages(msgs=>msgs.filter(m=>m.id!==id));
+
+  // Group messages by date
+  const grouped=useMemo(()=>{
+    const g={};
+    messages.forEach(m=>{
+      const day=m.time.split(" ")[0];
+      if(!g[day])g[day]=[];
+      g[day].push(m);
+    });
+    return g;
+  },[messages]);
+
+  const formatDate=(dateStr)=>{
+    const d=new Date(dateStr+"T12:00:00");
+    const today=new Date();
+    if(d.toDateString()===today.toDateString())return "Hoy";
+    const yesterday=new Date(today);yesterday.setDate(today.getDate()-1);
+    if(d.toDateString()===yesterday.toDateString())return "Ayer";
+    return `${d.getDate()} de ${MONTHS[d.getMonth()]}`;
+  };
+
+  return(
+    <div style={{...S.card,padding:0,display:"flex",flexDirection:"column",height:mobile?"calc(100vh - 160px)":"600px",overflow:"hidden"}}>
+      {/* Chat header */}
+      <div style={{padding:mobile?"12px 16px":"16px 24px",background:"#1B2A4A",borderRadius:"14px 14px 0 0",display:"flex",alignItems:"center",gap:12}}>
+        <div style={{width:40,height:40,borderRadius:"50%",background:"#5B8A72",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,flexShrink:0}}>🌱</div>
+        <div>
+          <div style={{fontSize:15,fontWeight:700,color:"#fff"}}>{isAdmin?"Mensajes de apoderados":"Chat con la Profe"}</div>
+          <div style={{fontSize:12,color:"rgba(255,255,255,0.5)"}}>{isAdmin?"Responde consultas aquí":"Consultas, avisos y coordinación"}</div>
+        </div>
+        <div style={{marginLeft:"auto",fontSize:12,color:"rgba(255,255,255,0.4)"}}>{messages.length} mensajes</div>
+      </div>
+
+      {/* Messages */}
+      <div style={{flex:1,overflowY:"auto",padding:mobile?"12px":"16px 24px",display:"flex",flexDirection:"column",gap:4,background:"#F7F5F0"}}>
+        {Object.entries(grouped).map(([day,msgs])=>(
+          <div key={day}>
+            <div style={{textAlign:"center",margin:"12px 0 8px"}}>
+              <span style={{fontSize:11,fontWeight:700,color:"#999",background:"#ECEAE4",padding:"3px 12px",borderRadius:10}}>{formatDate(day)}</span>
+            </div>
+            {msgs.map(m=>{
+              const isMine=isAdmin?(m.from==="admin"):(m.from==="parent");
+              return(
+                <div key={m.id} style={{display:"flex",justifyContent:isMine?"flex-end":"flex-start",marginBottom:6,position:"relative",group:"msg"}}>
+                  <div style={{maxWidth:mobile?"85%":"70%",position:"relative"}}>
+                    {/* Name */}
+                    {!isMine&&(
+                      <div style={{fontSize:11,fontWeight:700,color:m.from==="admin"?"#5B8A72":"#8B7FC7",marginBottom:2,marginLeft:4}}>
+                        {m.from==="admin"?"🌱 ":""}{m.name}
+                      </div>
+                    )}
+                    <div style={{
+                      padding:mobile?"10px 14px":"12px 16px",
+                      borderRadius:isMine?"16px 16px 4px 16px":"16px 16px 16px 4px",
+                      background:isMine?(m.from==="admin"?"#5B8A72":"#8B7FC7"):"#fff",
+                      color:isMine?"#fff":"#1B2A4A",
+                      fontSize:14,lineHeight:1.5,
+                      boxShadow:isMine?"none":"0 1px 3px rgba(0,0,0,0.06)",
+                      border:isMine?"none":"1px solid #ECEAE4",
+                    }}>
+                      {m.text}
+                    </div>
+                    <div style={{display:"flex",justifyContent:isMine?"flex-end":"flex-start",alignItems:"center",gap:6,marginTop:3,padding:"0 4px"}}>
+                      <span style={{fontSize:10,color:"#BCBAB3"}}>{m.time.split(" ")[1]}</span>
+                      {isAdmin&&<button onClick={()=>deleteMsg(m.id)} style={{background:"none",border:"none",fontSize:10,color:"#ddd",cursor:"pointer",padding:0}}>eliminar</button>}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ))}
+        <div ref={chatEndRef}/>
+      </div>
+
+      {/* Input area */}
+      <div style={{padding:mobile?"10px 12px":"12px 24px",background:"#fff",borderTop:"1.5px solid #ECEAE4",borderRadius:"0 0 14px 14px"}}>
+        {/* Name input for parents on first message */}
+        {!isAdmin&&showNameInput&&!senderName&&(
+          <div style={{marginBottom:8}}>
+            <input
+              placeholder="Tu nombre (ej: Mamá de Sol)"
+              value={senderName}
+              onChange={e=>setSenderName(e.target.value)}
+              onKeyDown={e=>e.key==="Enter"&&senderName.trim()&&setShowNameInput(false)}
+              style={{...S.fi,padding:"8px 14px",fontSize:13,width:"100%"}}
+            />
+          </div>
+        )}
+        {!isAdmin&&senderName&&(
+          <div style={{marginBottom:6,display:"flex",alignItems:"center",gap:6}}>
+            <span style={{fontSize:12,color:"#8B7FC7",fontWeight:600}}>Enviando como: {senderName}</span>
+            <button onClick={()=>{setShowNameInput(true);setSenderName("");}} style={{background:"none",border:"none",fontSize:11,color:"#ccc",cursor:"pointer",textDecoration:"underline"}}>cambiar</button>
+          </div>
+        )}
+        <div style={{display:"flex",gap:8,alignItems:"flex-end"}}>
+          <textarea
+            value={text}
+            onChange={e=>setText(e.target.value)}
+            onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendMessage();}}}
+            placeholder={isAdmin?"Responder como Profe...":"Escribe tu mensaje..."}
+            rows={1}
+            style={{
+              flex:1,padding:"10px 14px",borderRadius:12,border:"1.5px solid #E2E1DC",
+              fontSize:14,outline:"none",background:"#FAFAF8",color:"#1B2A4A",
+              resize:"none",fontFamily:"inherit",lineHeight:1.4,
+              minHeight:42,maxHeight:120,
+            }}
+          />
+          <button
+            onClick={sendMessage}
+            disabled={!text.trim()}
+            style={{
+              width:42,height:42,borderRadius:12,border:"none",
+              background:text.trim()?"#5B8A72":"#E2E1DC",
+              color:"#fff",cursor:text.trim()?"pointer":"default",
+              display:"flex",alignItems:"center",justifyContent:"center",
+              flexShrink:0,transition:"background .15s",
+            }}
+          >
+            <IconSend/>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════
    ADMIN PANEL
    ══════════════════════════════════════════════ */
-function AdminPanel({schedule,setSchedule,events,setEvents,info,setInfo,colaciones,setColaciones,kids,setKids,sorteo,setSorteo,onLogout}){
+function AdminPanel({schedule,setSchedule,events,setEvents,info,setInfo,colaciones,setColaciones,kids,setKids,sorteo,setSorteo,messages,setMessages,onLogout}){
   const [section,setSection]=useState("horario");
   const [calYear,setCalYear]=useState(2026);
   const [expandedMonth,setExpandedMonth]=useState(null);
@@ -690,11 +851,13 @@ function AdminPanel({schedule,setSchedule,events,setEvents,info,setInfo,colacion
     setEditingCell(null);
   },[editVal,setSchedule]);
 
+  const unreadCount=messages.filter(m=>m.from==="parent").length;
   const sideItems=[
     {key:"horario",label:"Horario",icon:<IconClock/>},
     {key:"colaciones",label:"Colaciones",icon:<IconApple/>},
     {key:"eventos",label:"Eventos",icon:<IconCal/>},
     {key:"info",label:"Información",icon:<IconBell/>},
+    {key:"chat",label:"Chat",icon:<IconChat/>,badge:unreadCount},
   ];
 
   const navContent=(
@@ -863,6 +1026,11 @@ function AdminPanel({schedule,setSchedule,events,setEvents,info,setInfo,colacion
               <InfoBoard info={info} onRemove={removeInfo} mobile={mobile}/>
             </div>
           </>
+        )}
+
+        {/* ADMIN CHAT */}
+        {section==="chat"&&(
+          <ChatView messages={messages} setMessages={setMessages} mobile={mobile} isAdmin/>
         )}
       </div>
     </div>
